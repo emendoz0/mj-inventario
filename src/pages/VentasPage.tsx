@@ -406,7 +406,7 @@ export default function VentasPage() {
                     <option value="">Seleccionar producto...</option>
                     {productos
                       .filter(
-                        (p) => !lineItems.some((li) => String(li.producto_id) === String(p.id))
+                        (p) => p.stock > 0 && !lineItems.some((li) => String(li.producto_id) === String(p.id))
                       )
                       .map((p) => (
                         <option key={p.id} value={String(p.id)}>
