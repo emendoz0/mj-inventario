@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Package, MessageCircle } from 'lucide-react';
+import { Loader2, Package, MessageCircle, Eye, EyeOff } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
-import { type Producto } from '@/types';
+import { type Producto, precioVenta } from '@/types';
+import { formatCurrency } from '@/lib/format';
 
 const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '50588888888';
 
@@ -16,6 +17,7 @@ export default function CatalogoPage() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [mostrarPrecios, setMostrarPrecios] = useState(false);
 
   useEffect(() => {
     loadProductos();
@@ -45,6 +47,17 @@ export default function CatalogoPage() {
             Productos disponibles para mostrar a tus clientes
           </p>
         </div>
+        <button
+          onClick={() => setMostrarPrecios((v) => !v)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition ${
+            mostrarPrecios
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              : 'bg-slate-800/50 text-slate-400 border border-slate-700 hover:text-white'
+          }`}
+        >
+          {mostrarPrecios ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+          {mostrarPrecios ? 'Ocultar Precios' : 'Mostrar Precios'}
+        </button>
       </div>
 
       {error && (
@@ -111,6 +124,11 @@ export default function CatalogoPage() {
                 )}
                 {p.presentacion && (
                   <p className="text-xs text-slate-500">{p.presentacion}</p>
+                )}
+                {mostrarPrecios && (
+                  <p className="text-lg font-bold text-emerald-400">
+                    {formatCurrency(p.precio_venta ?? precioVenta(p))}
+                  </p>
                 )}
                 <a
                   href={buildWhatsAppLink(p.nombre)}

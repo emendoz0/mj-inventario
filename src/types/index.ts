@@ -11,6 +11,7 @@ export interface Producto {
   stock: number;
   imagen_url: string | null;
   observaciones: string | null;
+  precio_venta: number | null;
   creado_en: string;
 }
 

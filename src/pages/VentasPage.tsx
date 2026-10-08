@@ -10,10 +10,18 @@ import {
 } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { type Venta, type DetalleVenta, type Cliente, type Producto, precioVenta } from '@/types';
+import { type Venta, type Cliente, type Producto, precioVenta } from '@/types';
 
 interface VentaWithCliente extends Venta {
   cliente: Cliente | null;
+  detalles_venta?: DetalleVentaProducto[];
+}
+
+interface DetalleVentaProducto {
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  productos: { nombre: string } | null;
 }
 
 export default function VentasPage() {
@@ -23,7 +31,7 @@ export default function VentasPage() {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [showDetail, setShowDetail] = useState<VentaWithCliente | null>(null);
-  const [detalles, setDetalles] = useState<DetalleVenta[]>([]);
+  const [detalles, setDetalles] = useState<DetalleVentaProducto[]>([]);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
 
   // Form state
@@ -43,7 +51,7 @@ export default function VentasPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from('ventas')
-      .select('*, cliente:clientes(*)')
+      .select('*, cliente:clientes(*), detalles_venta(cantidad, productos(nombre))')
       .neq('estado', 'cancelada')
       .order('creado_en', { ascending: false });
     if (error) {
@@ -90,7 +98,7 @@ export default function VentasPage() {
       return;
     }
 
-    const precio = precioVenta(prod);
+    const precio = prod.precio_venta ?? precioVenta(prod);
 
     setLineItems((prev) => [
       ...prev.filter((li) => String(li.producto_id) !== String(prod.id)),
@@ -158,13 +166,14 @@ export default function VentasPage() {
   const viewDetail = async (venta: VentaWithCliente) => {
     setShowDetail(venta);
     setLoadingDetalles(true);
+    setDetalles([]);
     const supabase = getSupabase();
     if (!supabase) return;
     const { data } = await supabase
       .from('detalles_venta')
-      .select('*, producto:productos(*)')
-      .eq('venta_id', venta.id);
-    setDetalles((data ?? []) as DetalleVenta[]);
+      .select('cantidad, precio_unitario, subtotal, productos(nombre)')
+      .eq('venta_id', String(venta.id));
+    setDetalles((data ?? []) as DetalleVentaProducto[]);
     setLoadingDetalles(false);
   };
 
@@ -257,6 +266,7 @@ export default function VentasPage() {
                 <tr className="border-b border-slate-700 text-slate-400">
                   <th className="text-left px-4 py-3 font-medium">Fecha</th>
                   <th className="text-left px-4 py-3 font-medium">Cliente</th>
+                  <th className="text-left px-4 py-3 font-medium w-48 max-w-[200px]">Productos</th>
                   <th className="text-left px-4 py-3 font-medium">Pago</th>
                   <th className="text-left px-4 py-3 font-medium">Estado</th>
                   <th className="text-right px-4 py-3 font-medium">Total</th>
@@ -274,6 +284,13 @@ export default function VentasPage() {
                     </td>
                     <td className="px-4 py-3 text-white font-medium">
                       {v.cliente?.nombre ?? 'Venta general'}
+                    </td>
+                    <td className="px-4 py-3 w-48 max-w-[200px]">
+                      <p className="text-xs text-slate-300 whitespace-normal break-words leading-snug">
+                        {(v.detalles_venta ?? []).length > 0
+                          ? (v.detalles_venta ?? []).map((d) => d.cantidad + 'x ' + (d.productos?.nombre ?? 'Producto')).join(', ')
+                          : 'Sin detalles'}
+                      </p>
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -393,7 +410,7 @@ export default function VentasPage() {
                       )
                       .map((p) => (
                         <option key={p.id} value={String(p.id)}>
-                          {p.nombre} — {formatCurrency(precioVenta(p))} (stock: {p.stock})
+                          {p.nombre} — {formatCurrency(p.precio_venta ?? precioVenta(p))} (stock: {p.stock})
                         </option>
                       ))}
                   </select>
@@ -575,13 +592,13 @@ export default function VentasPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {detalles.map((d) => (
+                      {detalles.map((d, i) => (
                         <tr
-                          key={d.id}
+                          key={i}
                           className="border-b border-slate-800"
                         >
                           <td className="px-3 py-2 text-white">
-                            {d.producto?.nombre ?? '—'}
+                            {d.productos?.nombre ?? '—'}
                           </td>
                           <td className="px-3 py-2 text-right text-slate-300">
                             {d.cantidad}

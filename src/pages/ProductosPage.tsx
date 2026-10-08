@@ -35,6 +35,7 @@ type ProductoInput = {
   presentacion: string;
   precio_compra: number;
   porcentaje_ganancia: number;
+  precio_venta: number | null;
   stock: number;
   imagen_url: string;
   observaciones: string;
@@ -48,6 +49,7 @@ const EMPTY_FORM: ProductoInput = {
   presentacion: '',
   precio_compra: 0,
   porcentaje_ganancia: 0,
+  precio_venta: null,
   stock: 0,
   imagen_url: '',
   observaciones: '',
@@ -62,10 +64,12 @@ export default function ProductosPage() {
   const [filterGenero, setFilterGenero] = useState('');
   const [filterMarca, setFilterMarca] = useState('');
   const [filterPresentacion, setFilterPresentacion] = useState('');
+  const [soloConExistencia, setSoloConExistencia] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Producto | null>(null);
   const [form, setForm] = useState<ProductoInput>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [precioEditado, setPrecioEditado] = useState(false);
   const [reabastoTarget, setReabastoTarget] = useState<Producto | null>(null);
   const [reabasto, setReabasto] = useState({
     cantidad: 1,
@@ -98,6 +102,7 @@ export default function ProductosPage() {
   const openCreate = () => {
     setEditing(null);
     setForm(EMPTY_FORM);
+    setPrecioEditado(false);
     setShowForm(true);
   };
 
@@ -111,10 +116,12 @@ export default function ProductosPage() {
       presentacion: p.presentacion ?? '',
       precio_compra: p.precio_compra,
       porcentaje_ganancia: p.porcentaje_ganancia,
+      precio_venta: p.precio_venta,
       stock: p.stock,
       imagen_url: p.imagen_url ?? '',
       observaciones: p.observaciones ?? '',
     });
+    setPrecioEditado(false);
     setShowForm(true);
   };
 
@@ -125,6 +132,14 @@ export default function ProductosPage() {
     setSaving(true);
     setError('');
 
+    const precioVentaFinal = precioEditado && form.precio_venta != null
+      ? form.precio_venta
+      : null;
+
+    const porcentajeFinal = precioEditado && form.precio_venta != null && form.precio_compra > 0
+      ? Number((((form.precio_venta - form.precio_compra) / form.precio_compra) * 100).toFixed(2))
+      : form.porcentaje_ganancia;
+
     const payload = {
       nombre: form.nombre,
       categoria: form.categoria || null,
@@ -132,7 +147,8 @@ export default function ProductosPage() {
       genero: form.genero || null,
       presentacion: form.presentacion || null,
       precio_compra: form.precio_compra,
-      porcentaje_ganancia: form.porcentaje_ganancia,
+      porcentaje_ganancia: porcentajeFinal,
+      precio_venta: precioVentaFinal,
       stock: form.stock,
       imagen_url: form.imagen_url || null,
       observaciones: form.observaciones || null,
@@ -218,8 +234,9 @@ export default function ProductosPage() {
     const matchMarca = !filterMarca || p.marca === filterMarca;
     const matchPresentacion =
       !filterPresentacion || p.presentacion === filterPresentacion;
+    const matchExistencia = !soloConExistencia || p.stock > 0;
     return (
-      matchSearch && matchCategoria && matchGenero && matchMarca && matchPresentacion
+      matchSearch && matchCategoria && matchGenero && matchMarca && matchPresentacion && matchExistencia
     );
   });
 
@@ -290,6 +307,17 @@ export default function ProductosPage() {
           placeholder="Presentación"
           className="px-4 py-2.5 rounded-xl bg-slate-800/50 border border-slate-700 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition text-sm min-w-[140px]"
         />
+        <button
+          onClick={() => setSoloConExistencia((v) => !v)}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition whitespace-nowrap ${
+            soloConExistencia
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+              : 'bg-slate-800/50 text-slate-400 border border-slate-700 hover:text-white'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Solo con existencia
+        </button>
         <datalist id="dl-categorias">
           {CATEGORIAS.map((c) => (
             <option key={c} value={c} />
@@ -331,7 +359,7 @@ export default function ProductosPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700 text-slate-400">
-                  <th className="text-left px-4 py-3 font-medium">Nombre</th>
+                  <th className="text-left px-4 py-3 font-medium w-56 max-w-[220px]">Nombre</th>
                   <th className="text-left px-4 py-3 font-medium">Categoría</th>
                   <th className="text-left px-4 py-3 font-medium">Marca</th>
                   <th className="text-left px-4 py-3 font-medium">Género</th>
@@ -349,8 +377,8 @@ export default function ProductosPage() {
                     key={p.id}
                     className="border-b border-slate-800 hover:bg-slate-800/30 transition"
                   >
-                    <td className="px-4 py-3 text-white font-medium whitespace-nowrap">
-                      {p.nombre}
+                    <td className="px-4 py-3 text-white font-medium w-56 max-w-[220px]">
+                      <span className="whitespace-normal break-words">{p.nombre}</span>
                     </td>
                     <td className="px-4 py-3 text-slate-400">
                       {p.categoria ?? '—'}
@@ -371,7 +399,7 @@ export default function ProductosPage() {
                       {p.porcentaje_ganancia}%
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
-                      {formatCurrency(precioVenta(p))}
+                      {formatCurrency(p.precio_venta ?? precioVenta(p))}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
@@ -517,12 +545,14 @@ export default function ProductosPage() {
                     min="0"
                     required
                     value={form.precio_compra}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        precio_compra: parseFloat(e.target.value) || 0,
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setForm((prev) => ({
+                        ...prev,
+                        precio_compra: val,
+                        precio_venta: precioEditado ? prev.precio_venta : null,
+                      }));
+                    }}
                     className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm"
                   />
                 </div>
@@ -536,12 +566,15 @@ export default function ProductosPage() {
                     min="0"
                     required
                     value={form.porcentaje_ganancia}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        porcentaje_ganancia: parseFloat(e.target.value) || 0,
-                      })
-                    }
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setForm((prev) => ({
+                        ...prev,
+                        porcentaje_ganancia: val,
+                        precio_venta: null,
+                      }));
+                      setPrecioEditado(false);
+                    }}
                     className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-slate-700 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-sm"
                   />
                 </div>
@@ -597,14 +630,36 @@ export default function ProductosPage() {
                 </div>
               </div>
 
-              {/* Computed selling price preview */}
-              <div className="flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <span className="text-sm text-emerald-300">
-                  Precio de venta calculado:
-                </span>
-                <span className="text-lg font-bold text-emerald-400">
-                  {formatCurrency(precioVenta(form))}
-                </span>
+              {/* Editable selling price */}
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-emerald-300">
+                    Precio de venta {precioEditado ? '(manual)' : '(calculado)'}:
+                  </span>
+                  <span className="text-xs text-emerald-300/70">
+                    Sugerido: {formatCurrency(precioVenta(form))}
+                  </span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.precio_venta ?? precioVenta(form)}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      precio_venta: isNaN(val) ? null : val,
+                    }));
+                    setPrecioEditado(true);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg bg-slate-900/60 border border-emerald-500/30 text-emerald-400 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/50 text-right"
+                />
+                {precioEditado && (
+                  <p className="text-xs text-emerald-300/60">
+                    Al editar manualmente, el porcentaje de ganancia se ajustará automáticamente al guardar.
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-2">
