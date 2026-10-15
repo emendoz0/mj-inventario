@@ -141,13 +141,13 @@ export default function VentasPage() {
     setError('');
 
     const items = lineItems.map((li) => ({
-      producto_id: li.producto_id,
-      cantidad: li.cantidad,
-      precio_unitario: li.precio_unitario,
+      producto_id: String(li.producto_id),
+      cantidad: Number(li.cantidad),
+      precio_unitario: Number(li.precio_unitario),
     }));
 
     const { data, error: rpcError } = await supabase.rpc('crear_venta', {
-      p_cliente_id: clienteId || null,
+      p_cliente_id: clienteId ? String(clienteId) : null,
       p_tipo_pago: tipoPago,
       p_items: items,
     });
@@ -419,7 +419,7 @@ export default function VentasPage() {
                     onClick={addLineItem}
                     className="flex-shrink-0 px-4 py-2.5 rounded-lg bg-emerald-500 text-white font-medium text-sm hover:bg-emerald-400 transition"
                   >
-                   Añadir
+                    Añadir
                   </button>
                 </div>
 
