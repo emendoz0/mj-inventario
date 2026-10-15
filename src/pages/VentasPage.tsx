@@ -146,10 +146,13 @@ export default function VentasPage() {
       precio_unitario: Number(li.precio_unitario),
     }));
 
+    // Invocación enviando payload JSON unificado para evitar conflictos de tipos
     const { data, error: rpcError } = await supabase.rpc('crear_venta', {
-      p_cliente_id: clienteId ? String(clienteId) : null,
-      p_tipo_pago: tipoPago,
-      p_items: items,
+      p_payload: {
+        cliente_id: clienteId ? String(clienteId) : null,
+        tipo_pago: tipoPago,
+        items: items,
+      },
     });
 
     if (rpcError || !data) {
